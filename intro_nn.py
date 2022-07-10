@@ -3,14 +3,19 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 from tensorflow.python.keras import layers
-# from matplotlib.pyplot import pyplot as plt
 import seaborn as sns
+
+# --- 0. Clean up outputs for results
 
 # The following lines adjust the granularity of reporting. 
 pd.options.display.max_rows = 10
 pd.options.display.float_format = "{:.1f}".format
 
+# The following line improves formatting when ouputting NumPy arrays.
+np.set_printoptions(linewidth = 200)
+
 # --- 1. Handle and Load the Dataset
+#this dataset has already been split 80-20 by test and train data csv
 # df returns a dataset/arraylist data structure
 train_df = pd.read_csv("https://download.mlcc.google.com/mledu-datasets/california_housing_train.csv")
 # shuffle the examples to ensure randomness
