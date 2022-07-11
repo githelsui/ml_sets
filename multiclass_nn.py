@@ -1,8 +1,8 @@
 import tensorflow as tf
+from tensorflow.python.keras import layers
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-from tensorflow.python.keras import layers
 import seaborn as sns
 
 # --- 0. Clean up outputs for results
@@ -76,6 +76,8 @@ def create_model(my_learning_rate):
   # The features are stored in a two-dimensional 28X28 array. 
   # Flatten that two-dimensional array into a a one-dimensional 
   # 784-element array.
+
+  # Input layer
   model.add(tf.keras.layers.Flatten(input_shape=(28, 28)))
 
   # Define the first hidden layer.   
