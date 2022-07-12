@@ -128,3 +128,108 @@ model = create_cnn_model((224, 224, 3))
 tf.keras.utils.plot_model(model, 'model_diagram.png')
 plt.figure(figsize=(160, 60))
 plt.imshow(Image.open('model_diagram.png'))
+
+# --- 2. Create functions for training the model, preductions, etc other functionality
+
+def graph_training_data(epochs, training_data, validation_data, y_label, title):
+
+    """Plot trainig data."""
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=np.arange(1, epochs+1), mode='lines+markers', y=training_data,
+            marker=dict(color="mediumpurple"), name="Training"))
+
+    fig.add_trace(
+        go.Scatter(
+            x=np.arange(1, epochs+1), mode='lines+markers', y=validation_data,
+            marker=dict(color="forestgreen"), name="Validation"))
+
+    fig.update_layout(title_text=title, yaxis_title=y_label,
+                      xaxis_title="Epochs", template="plotly_white")
+    fig.show()
+
+# Get prediction from the model based of the 'L' grayscale image
+def get_pred(model, image_l):
+    # Repeat the L value to match input shape
+    image_l_R = np.repeat(image_l[..., np.newaxis], 3, -1)
+    image_l_R = image_l_R.reshape((1, 224, 224, 3))
+    # Normalize the input
+    image_l_R = (image_l_R.astype('float32') - 127.5) / 127.5
+    # Make prediction
+    prediction = model.predict(image_l_R)
+    # Normalize the output
+    pred = (prediction[0].astype('float32') * 127.5) + 127.5
+    
+    return pred
+
+# Create some samples of black and white images combined, to show input/output
+def create_sample(model, images_gray, amount):
+    path = "/sample/"
+    samples = []
+    for i in range(amount):
+        # Select random images
+        r = random.randint(0, images_gray.shape[0])
+        # Get the model's prediction
+        pred = get_pred(model, images_gray[r])
+        # Combine input and output to LAB image
+        image = get_LAB(images_gray[r], pred)
+        # Get number of images in output folder
+        count = len(os.listdir(path))
+        # Create new combined image and save it
+        new_image = Image.new('RGB', (448, 224))
+        gray_image = Image.fromarray(images_gray[r])
+        new_image.paste(gray_image, (0,0))
+        new_image.paste(image, (224, 0))
+        # Saving the image with the current count of images (to make it unique)
+        # and the index of the image, so that it can be found if needed
+        new_image.save(path + str(count)+('_%i.png' % r))
+        samples.append(new_image)
+    return samples
+
+# function for training the cnn model given input of data
+def train(model, gray, ab, epochs, batch_size):
+    # Setup the training input data (grayscale images)
+    train_in = gray
+    # Convert the shape from (224, 224, 1) to (224, 224, 3) by copying the value to match MobileNet's requirements
+    train_in = np.repeat(train_in[..., np.newaxis], 3, -1)
+    
+    train_out = ab
+    # Normalize the data
+    train_in = (train_in.astype('float32') - 127.5) / 127.5
+    train_out = (train_out.astype('float32') - 127.5) / 127.5
+
+    history = model.fit(
+        train_in,
+        train_out,
+        epochs=epochs,
+        validation_split=0.05,
+        batch_size=batch_size
+    )
+    
+    return history
+
+# Combine an 'L' grayscale image with an 'AB' image, and convert to RGB for display or use
+def get_LAB(image_l, image_ab):
+    image_l = image_l.reshape((224, 224, 1))
+    image_lab = np.concatenate((image_l, image_ab), axis=2)
+    image_lab = image_lab.astype("uint8")
+    image_rgb = cv2.cvtColor(image_lab, cv2.COLOR_LAB2RGB)
+    image_rgb = Image.fromarray(image_rgb)
+    return image_rgb
+
+# --- 3. Begin training process
+images_gray = np.load("../input/image-colorization/l/gray_scale.npy")
+images_ab = np.load("../input/image-colorization/ab/ab/ab1.npy")
+
+# Set batch size and epochs for training run
+BATCH_SIZE = 32
+EPOCHS = 30
+
+# Create the model through the function above
+model = create_cnn_model((224, 224, 3))
+
+# Train the model and keep history for graphing
+history = train(model, images_gray[:3000], images_ab[:3000], EPOCHS, BATCH_SIZE)
