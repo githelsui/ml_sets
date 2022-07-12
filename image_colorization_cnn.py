@@ -16,9 +16,26 @@ import h5py
 import os
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
-import pydot
+# libs for creating directories, downloading data
+import pathlib
+from tqdm import tqdm
+import opendatasets as od
+import kaggle
+from kaggle.api.kaggle_api_extended import KaggleApi
 
-# --- 1. Create the Model following the graph
+"""
+# TODO --- 0. Download datasets programmatically (Run inside jupyter notebook to avoid multiprocessing error within python3)
+BASE_DIR = pathlib.Path().resolve().parent
+DATASETS_DIR = BASE_DIR / "datasets"
+DATASETS_DIR.mkdir(exist_ok=True, parents=True)
+
+api = KaggleApi()
+api.authenticate()
+# downloads kaggle dataset with our authenticated user and key
+api.dataset_download_files('shravankumar9892/image-colorization', path=DATASETS_DIR, force=True, unzip=True)
+"""
+
+# TODO --- 1. Create the Model following the graph
 
 def create_cnn_model(image_shape):
     # weight initialization before any image processing must begin
@@ -124,12 +141,15 @@ def create_cnn_model(image_shape):
 
     return model
 
+# -- output model diagram as png 
+# will remove EVERYTHING from memory (models, optimizer objects and anything that has tensors internally)
+tf.keras.backend.clear_session()
 model = create_cnn_model((224, 224, 3))
 tf.keras.utils.plot_model(model, 'model_diagram.png')
 plt.figure(figsize=(160, 60))
 plt.imshow(Image.open('model_diagram.png'))
 
-# --- 2. Create functions for training the model, preductions, etc other functionality
+# TODO --- 2. Create functions for training the model, preductions, etc other functionality
 
 def graph_training_data(epochs, training_data, validation_data, y_label, title):
 
@@ -198,8 +218,9 @@ def train(model, gray, ab, epochs, batch_size):
     
     train_out = ab
     # Normalize the data
-    train_in = (train_in.astype('float32') - 127.5) / 127.5
-    train_out = (train_out.astype('float32') - 127.5) / 127.5
+    # train_in = x, train_out = y
+    train_in = (train_in.astype('float32') - 127.5) / 127.5 #x-input
+    train_out = (train_out.astype('float32') - 127.5) / 127.5 #y-output; target data
 
     history = model.fit(
         train_in,
@@ -219,17 +240,32 @@ def get_LAB(image_l, image_ab):
     image_rgb = cv2.cvtColor(image_lab, cv2.COLOR_LAB2RGB)
     image_rgb = Image.fromarray(image_rgb)
     return image_rgb
-
-# --- 3. Begin training process
-images_gray = np.load("../input/image-colorization/l/gray_scale.npy")
-images_ab = np.load("../input/image-colorization/ab/ab/ab1.npy")
+    
+# TODO --- 3. Define hyperparameters & begin training process
+images_gray = np.load("datasets/l/gray_scale.npy")
+images_ab = []
+images_ab1 = np.load("datasets/ab/ab/ab1.npy")
+images_ab2 = np.load("datasets/ab/ab/ab2.npy")
+images_ab.append(images_ab1)
+images_ab.append(images_ab2)
 
 # Set batch size and epochs for training run
 BATCH_SIZE = 32
 EPOCHS = 30
 
-# Create the model through the function above
-model = create_cnn_model((224, 224, 3))
-
 # Train the model and keep history for graphing
 history = train(model, images_gray[:3000], images_ab[:3000], EPOCHS, BATCH_SIZE)
+
+# TODO --- 4. Graph training data against validation data
+
+graph_training_data(EPOCHS, history.history['loss'], history.history['val_loss'], 'Loss', "Loss while training")
+graph_training_data(EPOCHS, history.history['accuracy'], history.history['val_accuracy'], 'Accuracy', "Accuracy while training")
+
+# TODO --- 5. Evaluate the model & create predictions (make sample images)
+
+# Print out evaluations for overall epochs to get average loss and average accuracy of model
+evaluate_model = model.evaluate(images_gray[:3000], images_ab[:3000])
+samples = create_sample(model, images_gray, 5)
+for image in samples:
+    plt.figure()
+    plt.imshow(np.array(image))
